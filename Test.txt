@@ -4,3 +4,5 @@
 
 // Now I have renamed the repo name on github. I want to see if all the local setup still works. 
 // So I am going to commit this two lines of code as is. No change locally
+
+// This a commit from locally cloned project using new link - Repo-Original-Text-File
