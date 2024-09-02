@@ -6,3 +6,6 @@
 // So I am going to commit this two lines of code as is. No change locally
 
 // This a commit from locally cloned project using new link - Repo-Original-Text-File
+
+// And this commit is after pulling the changes to project cloned at the very beginning. 
+// It is still able to get the new changes. And able to commit to the renamed repository.
