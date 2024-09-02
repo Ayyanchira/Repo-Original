@@ -1,3 +1,6 @@
 // This is a test file
 
 // This line is added from VSCode locally. and then pushed to github.
+
+// Now I have renamed the repo name on github. I want to see if all the local setup still works. 
+// So I am going to commit this two lines of code as is. No change locally
