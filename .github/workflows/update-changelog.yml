@@ -1,0 +1,57 @@
+name: Update Changelog
+
+on:
+  workflow_dispatch:
+    inputs:
+      changelog:
+        description: 'Changelog entry'
+        required: true
+        type: string
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update README with changelog
+        run: |
+          # Read current README content
+          content=$(cat README.md)
+          
+          # Check if Changelog section exists
+          if ! grep -q "## Changelog" README.md; then
+            # If no changelog section exists, create one after the first heading
+            awk 'NR==1{print; print "\n## Changelog\n"}NR!=1{print}' README.md > temp && mv temp README.md
+          fi
+          
+          # Get the latest version number
+          latest_version=$(grep -oP '### Version \K[0-9.]+' README.md | sort -V | tail -n1)
+          
+          # Calculate new version
+          if [ -z "$latest_version" ]; then
+            new_version="1.0"
+          else
+            major=$(echo $latest_version | cut -d. -f1)
+            minor=$(echo $latest_version | cut -d. -f2)
+            new_version="$major.$((minor + 1))"
+          fi
+          
+          # Create new changelog entry
+          changelog_entry="\n### Version ${new_version}\n- ${{ github.event.inputs.changelog }}\n"
+          
+          # Insert new changelog entry after the Changelog heading
+          sed -i "/## Changelog/a ${changelog_entry}" README.md
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "docs: update changelog to version ${{ steps.update-version.outputs.new_version }}"
+          title: "Update Changelog"
+          body: |
+            Automated changelog update
+            
+            New changelog entry added:
+            ${{ github.event.inputs.changelog }}
+          branch: update-changelog
+          delete-branch: true 
