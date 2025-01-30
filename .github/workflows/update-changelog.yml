@@ -3,8 +3,8 @@ name: Update Changelog
 on:
   workflow_dispatch:
     inputs:
-      changelog:
-        description: 'Changelog entry'
+      version:
+        description: 'New version number (e.g., 3.6.0)'
         required: true
         type: string
 
@@ -21,45 +21,58 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update README with changelog
+      - name: Update Changelog
+        id: update_changelog
         run: |
-          # Read current README content
-          content=$(cat README.md)
+          # Function to extract content between two patterns
+          extract_between() {
+            awk "/$1/{p=1;next} /$2/{p=0} p" "$3"
+          }
           
-          # Check if Changelog section exists
-          if ! grep -q "## Changelog" README.md; then
-            # If no changelog section exists, create one after the first heading
-            awk 'NR==1{print; print "\n## Changelog\n"}NR!=1{print}' README.md > temp && mv temp README.md
+          # Get the unreleased content
+          unreleased_content=$(extract_between "## \[Unreleased\]" "## \[" "changelog.md")
+          
+          if [ -z "$unreleased_content" ]; then
+            echo "No unreleased changes found in changelog.md"
+            exit 1
           fi
           
-          # Get the latest version number
-          latest_version=$(grep -oP '### Version \K[0-9.]+' README.md | sort -V | tail -n1)
+          # Get the current version
+          current_version=$(grep -oP "## \[\K[0-9]+\.[0-9]+\.[0-9]+(?=\])" changelog.md | head -n1)
+          new_version="${{ github.event.inputs.version }}"
           
-          # Calculate new version
-          if [ -z "$latest_version" ]; then
-            new_version="1.0"
-          else
-            major=$(echo $latest_version | cut -d. -f1)
-            minor=$(echo $latest_version | cut -d. -f2)
-            new_version="$major.$((minor + 1))"
+          # Validate version format
+          if ! [[ $new_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format. Please use semantic versioning (e.g., 3.6.0)"
+            exit 1
           fi
           
-          # Create new changelog entry
-          changelog_entry="\n### Version ${new_version}\n- ${{ github.event.inputs.changelog }}\n"
+          echo "new_version=${new_version}" >> $GITHUB_OUTPUT
           
-          # Insert new changelog entry after the Changelog heading
-          sed -i "/## Changelog/a ${changelog_entry}" README.md
+          # Create temporary file
+          temp_file=$(mktemp)
+          
+          # Write new changelog content
+          {
+            echo "## [Unreleased]"
+            echo ""
+            echo "## [$new_version]"
+            echo "$unreleased_content"
+            tail -n +2 changelog.md
+          } > "$temp_file"
+          
+          # Replace original file
+          mv "$temp_file" changelog.md
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "docs: update changelog to version ${{ steps.update-version.outputs.new_version }}"
-          title: "Update Changelog"
+          commit-message: "chore: prepare release ${{ steps.update_changelog.outputs.new_version }}"
+          title: "Prepare release ${{ steps.update_changelog.outputs.new_version }}"
           body: |
-            Automated changelog update
+            Preparing release ${{ steps.update_changelog.outputs.new_version }}
             
-            New changelog entry added:
-            ${{ github.event.inputs.changelog }}
-          branch: update-changelog
+            This PR moves changes from the Unreleased section to a new version section in the changelog.
+          branch: prepare-release
           delete-branch: true 
