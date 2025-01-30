@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.0.0-beta2]
+
 ### Removed
 - Removed support for anonymous user tracking, allowing the SDK to track user behavior before authentication
 - Enhanced offline event queueing to persist events for anonymous users
@@ -9,8 +11,6 @@
 ## Note
 
 This changelog is a work in progress and will be updated as we release new versions of the SDK.
-
-
 ## [1.0.0-beta1]
 
 ### Added
