@@ -1,14 +1,13 @@
-name: Update Changelog
+name: Pre-Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'New version number (e.g., 3.6.0 or 1.0.0-beta1)'
+        description: 'Version number (e.g., 3.6.0 or 1.0.0-beta1)'
         required: true
         type: string
 
-# Add permissions block
 permissions:
   contents: write
   pull-requests: write
@@ -26,13 +25,13 @@ jobs:
         run: |
           changelog_file="changelog.md"
           
-          # Function to extract content between two patterns
+          # Function to extract content between two patterns, including the first pattern
           extract_between() {
-            awk "/$1/{p=1;next} /$2/{p=0} p" "$3"
+            awk "/^## \[$1\]/{p=1;print;next} /^## \[/{p=0} p" "$3"
           }
           
           # Get the unreleased content
-          unreleased_content=$(extract_between "## \[Unreleased\]" "## \[" "$changelog_file")
+          unreleased_content=$(extract_between "Unreleased" "[0-9]" "$changelog_file")
           
           if [ -z "$unreleased_content" ]; then
             echo "No unreleased changes found in $changelog_file"
@@ -40,7 +39,7 @@ jobs:
           fi
           
           # Get the current version
-          current_version=$(grep -oP "## \[\K[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9]+)?(?=\])" "$changelog_file" | head -n1)
+          current_version=$(grep -oP "^## \[\K[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9]+)?(?=\])" "$changelog_file" | head -n1)
           new_version="${{ github.event.inputs.version }}"
           
           # Validate version format (now includes beta versions)
@@ -59,8 +58,10 @@ jobs:
             echo "## [Unreleased]"
             echo ""
             echo "## [$new_version]"
-            echo "$unreleased_content"
-            tail -n +2 "$changelog_file"
+            # Remove the "## [Unreleased]" line from unreleased_content if it exists
+            echo "$unreleased_content" | sed '1{/^## \[Unreleased\]/d}'
+            # Get the rest of the file starting from the first version entry
+            sed -n '/^## \[[0-9]/,$p' "$changelog_file"
           } > "$temp_file"
           
           # Replace original file
@@ -70,11 +71,10 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: prepare release ${{ steps.update_changelog.outputs.new_version }}"
-          title: "Prepare release ${{ steps.update_changelog.outputs.new_version }}"
+          commit-message: "Prepare for release ${{ steps.update_changelog.outputs.new_version }}"
+          title: "Prepare for release ${{ steps.update_changelog.outputs.new_version }}"
           body: |
-            Preparing release ${{ steps.update_changelog.outputs.new_version }}
-            
-            This PR moves changes from the Unreleased section to a new version section in the changelog.
-          branch: prepare-release
+            Prepare for release ${{ steps.update_changelog.outputs.new_version }}
+
+          branch: prepare-for-${{ steps.update_changelog.outputs.new_version }}
           delete-branch: true 
